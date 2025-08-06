@@ -10,7 +10,6 @@ interface AuthContextType {
     signup: (name: string, mobileNumber: string) => Promise<boolean>;
     logout: () => void;
     verifyOTP: (otp: string) => Promise<boolean>;
-    isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,8 +24,6 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [storedOTP, setStoredOTP] = useState<string | null>(null);
 
     useEffect(() => {
         loadUserFromStorage();
@@ -35,20 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadUserFromStorage = async () => {
         try {
             const storedUser = await AsyncStorage.getItem('user');
-            const storedOTP = await AsyncStorage.getItem('userOTP');
 
             if (storedUser) {
                 const userData = JSON.parse(storedUser);
                 setUser(userData);
             }
-
-            if (storedOTP) {
-                setStoredOTP(storedOTP);
-            }
         } catch (error) {
             console.error('Error loading user from storage:', error);
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -62,7 +52,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const login = async (mobileNumber: string): Promise<boolean> => {
-        setIsLoading(true);
         try {
             // For demo purposes, accept any mobile number
             // In real app, this would validate against a database
@@ -74,7 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (userData.mobileNumber === mobileNumber) {
                     // Existing user - generate OTP
                     const otp = generateOTP();
-                    setStoredOTP(otp);
                     await AsyncStorage.setItem('userOTP', otp);
 
                     console.log('🎯 ==========================================');
@@ -95,11 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
 
             await AsyncStorage.setItem('user', JSON.stringify(newUser));
-            setUser(newUser);
+            // Don't set user state here - wait until OTP verification
 
             // Generate OTP for new user
             const otp = generateOTP();
-            setStoredOTP(otp);
             await AsyncStorage.setItem('userOTP', otp);
 
             console.log('🎯 ==========================================');
@@ -111,13 +98,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
             console.error('Login error:', error);
             return false;
-        } finally {
-            setIsLoading(false);
         }
     };
 
     const signup = async (name: string, mobileNumber: string): Promise<boolean> => {
-        setIsLoading(true);
         try {
             // Mock signup - in real app, this would call an API
             const newUser: User = {
@@ -128,11 +112,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
 
             await AsyncStorage.setItem('user', JSON.stringify(newUser));
-            setUser(newUser);
+            // Don't set user state here - wait until OTP verification
 
             // Generate OTP for first login
             const otp = generateOTP();
-            setStoredOTP(otp);
             await AsyncStorage.setItem('userOTP', otp);
 
             console.log(`OTP sent to ${mobileNumber}: ${otp}`);
@@ -140,14 +123,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
             console.error('Signup error:', error);
             return false;
-        } finally {
-            setIsLoading(false);
         }
     };
 
     const verifyOTP = async (otp: string): Promise<boolean> => {
-        setIsLoading(true);
         try {
+            // Read OTP from AsyncStorage
+            const storedOTP = await AsyncStorage.getItem('userOTP');
+
             if (storedOTP && storedOTP === otp) {
                 // OTP is correct, log user in
                 const currentUser = user || mockUser;
@@ -156,7 +139,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(loggedInUser);
                 await AsyncStorage.setItem('user', JSON.stringify(loggedInUser));
                 await AsyncStorage.removeItem('userOTP');
-                setStoredOTP(null);
 
                 return true;
             }
@@ -164,8 +146,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
             console.error('OTP verification error:', error);
             return false;
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -188,7 +168,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         logout,
         verifyOTP,
-        isLoading,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

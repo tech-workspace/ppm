@@ -177,12 +177,12 @@ const FindParkingScreen: React.FC<FindParkingScreenProps> = ({ navigation }) => 
             const isEnabled = await Location.hasServicesEnabledAsync();
             if (!isEnabled) {
                 console.log('Location services are disabled');
-                setLocationStatus('Location services disabled - using default location');
-                // Use default location for demo
+                setLocationStatus('Location services disabled - using default location (Abu Dhabi)');
+                // Use default location for demo (Abu Dhabi)
                 setUserLocation({
                     coords: {
-                        latitude: 25.2048,
-                        longitude: 55.2708,
+                        latitude: 24.4539,
+                        longitude: 54.3773,
                         altitude: null,
                         accuracy: null,
                         altitudeAccuracy: null,
@@ -198,12 +198,12 @@ const FindParkingScreen: React.FC<FindParkingScreenProps> = ({ navigation }) => 
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
                 console.log('Location permission denied, using default location');
-                setLocationStatus('Permission denied - using default location (Dubai)');
+                setLocationStatus('Permission denied - using default location (Abu Dhabi)');
                 // Use default location for demo instead of showing error
                 setUserLocation({
                     coords: {
-                        latitude: 25.2048,
-                        longitude: 55.2708,
+                        latitude: 24.4539,
+                        longitude: 54.3773,
                         altitude: null,
                         accuracy: null,
                         altitudeAccuracy: null,
@@ -237,12 +237,12 @@ const FindParkingScreen: React.FC<FindParkingScreenProps> = ({ navigation }) => 
             console.log('Location obtained successfully:', location.coords);
         } catch (error) {
             console.error('Error getting location:', error);
-            setLocationStatus('Using default location: Dubai Marina');
+            setLocationStatus('Using default location: Abu Dhabi City Center');
             // Use default location for demo
             setUserLocation({
                 coords: {
-                    latitude: 25.2048,
-                    longitude: 55.2708,
+                    latitude: 24.4539,
+                    longitude: 54.3773,
                     altitude: null,
                     accuracy: null,
                     altitudeAccuracy: null,
@@ -260,8 +260,8 @@ const FindParkingScreen: React.FC<FindParkingScreenProps> = ({ navigation }) => 
         // Always use a location - either real or default
         const locationToUse = userLocation || {
             coords: {
-                latitude: 25.2048,
-                longitude: 55.2708,
+                latitude: 24.4539,
+                longitude: 54.3773,
             },
         };
 
@@ -703,6 +703,7 @@ const styles = StyleSheet.create({
     lotType: {
         fontSize: 14,
         color: COLORS.secondaryText,
+        marginLeft: 10,
     },
     lotPrice: {
         fontSize: 18,
@@ -774,6 +775,7 @@ const styles = StyleSheet.create({
     typeOptionText: {
         fontSize: 16,
         color: COLORS.black,
+        marginLeft: 15,
     },
     lotDetailsModal: {
         padding: 20,

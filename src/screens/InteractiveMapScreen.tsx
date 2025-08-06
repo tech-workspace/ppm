@@ -122,8 +122,8 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
     const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
     const [showLotModal, setShowLotModal] = useState(false);
     const [region, setRegion] = useState<any>({
-        latitude: 25.2048,
-        longitude: 55.2708,
+        latitude: 24.4539,
+        longitude: 54.3773,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
     });
@@ -131,23 +131,25 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
     useEffect(() => {
         getCurrentLocation();
         loadParkingLots();
+    }, []); // Only run once on component mount
 
-        // Check if we have a selected lot from navigation
+    // Separate useEffect for route params
+    useEffect(() => {
         if (route.params?.selectedLot) {
             setSelectedLot(route.params.selectedLot);
             setShowLotModal(true);
         }
-    }, [route.params]);
+    }, [route.params?.selectedLot]);
 
-    const getCurrentLocation = async () => {
+    const getCurrentLocation = React.useCallback(async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
                 console.log('Location permission denied, using default location');
                 // Use default location for demo instead of showing error
                 const defaultLocation = {
-                    latitude: 25.2048,
-                    longitude: 55.2708,
+                    latitude: 24.4539,
+                    longitude: 54.3773,
                 };
                 setUserLocation(defaultLocation);
                 setRegion({
@@ -180,8 +182,8 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
             console.error('Error getting location:', error);
             // Use default location for demo
             const defaultLocation = {
-                latitude: 25.2048,
-                longitude: 55.2708,
+                latitude: 24.4539,
+                longitude: 54.3773,
             };
             setUserLocation(defaultLocation);
             setRegion({
@@ -191,22 +193,22 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
                 longitudeDelta: 0.01,
             });
         }
-    };
+    }, []);
 
-    const loadParkingLots = () => {
+    const loadParkingLots = React.useCallback(() => {
         const nearestLots = getNearestParkingLots(
-            { latitude: 25.2048, longitude: 55.2708 },
+            { latitude: 24.4539, longitude: 54.3773 },
             10
         );
         setParkingLots(nearestLots);
-    };
+    }, []);
 
-    const handleMarkerPress = (lot: ParkingLot) => {
+    const handleMarkerPress = React.useCallback((lot: ParkingLot) => {
         setSelectedLot(lot);
         setShowLotModal(true);
-    };
+    }, []);
 
-    const handleNavigate = () => {
+    const handleNavigate = React.useCallback(() => {
         if (selectedLot) {
             setShowLotModal(false);
 
@@ -244,9 +246,9 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
                 );
             });
         }
-    };
+    }, [selectedLot]);
 
-    const renderParkingMarker = (lot: ParkingLot) => {
+    const renderParkingMarker = React.useCallback((lot: ParkingLot) => {
         const typeConfig = getParkingTypeConfig(lot.type);
         console.log('Rendering marker for lot:', lot.name, 'type:', lot.type);
 
@@ -278,7 +280,7 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
                 </View>
             </Marker>
         );
-    };
+    }, [handleMarkerPress]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -339,7 +341,6 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
                         <MapView
                             style={styles.map}
                             region={region}
-                            onRegionChangeComplete={setRegion}
                             showsUserLocation={true}
                             showsMyLocationButton={false}
                             showsCompass={true}

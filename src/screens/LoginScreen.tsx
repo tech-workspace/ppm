@@ -25,7 +25,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     const [showOTPInput, setShowOTPInput] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { login, verifyOTP } = useAuth();
-
     // Debug useEffect to monitor showOTPInput changes
     useEffect(() => {
         console.log('showOTPInput changed to:', showOTPInput);
@@ -43,21 +42,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         }
 
         setIsLoading(true);
-                try {
+        try {
             const success = await login(mobileNumber.trim());
             console.log('Login result:', success);
             if (success) {
                 // Set state immediately
                 setShowOTPInput(true);
                 console.log('showOTPInput set to true immediately');
-                
-                // Show alert after a short delay to ensure state is updated
+
+                // Show alert after a delay to ensure state update is processed
                 setTimeout(() => {
                     Alert.alert(
                         'OTP Sent Successfully!',
                         'Please enter the OTP code below.\n\n💡 Demo OTP: 123456'
                     );
-                }, 50);
+                }, 100);
             } else {
                 Alert.alert('Error', 'Something went wrong. Please try again.');
             }
@@ -194,17 +193,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                                         <Text style={styles.signupLink}>Sign Up</Text>
                                     </TouchableOpacity>
                                 </View>
-
-                                {/* Debug button - remove this later */}
-                                <TouchableOpacity
-                                    style={[styles.button, { backgroundColor: COLORS.secondaryText, marginTop: 20 }]}
-                                    onPress={() => {
-                                        console.log('Debug: Setting showOTPInput to true');
-                                        setShowOTPInput(true);
-                                    }}
-                                >
-                                    <Text style={styles.buttonText}>Debug: Show OTP Input</Text>
-                                </TouchableOpacity>
                             </View>
                         </View>
                     </ScrollView>
