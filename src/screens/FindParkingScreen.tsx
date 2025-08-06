@@ -233,7 +233,7 @@ const FindParkingScreen: React.FC<FindParkingScreenProps> = ({ navigation }) => 
 
             setUserLocation(location);
             const districtName = getDistrictFromCoordinates(location.coords.latitude, location.coords.longitude);
-            setLocationStatus(`Location found: ${districtName}`);
+            setLocationStatus(`Location: ${districtName}`);
             console.log('Location obtained successfully:', location.coords);
         } catch (error) {
             console.error('Error getting location:', error);
@@ -386,31 +386,25 @@ const FindParkingScreen: React.FC<FindParkingScreenProps> = ({ navigation }) => 
                         </TouchableOpacity>
 
                         <View style={styles.locationStatusContainer}>
-                            <Text style={styles.locationStatusText}>{locationStatus}</Text>
-                            {isLoadingLocation && (
-                                <View style={styles.loadingIndicator}>
-                                    <Ionicons name="refresh" size={16} color={COLORS.turquoise} />
-                                </View>
-                            )}
+                            <View style={styles.locationStatusContent}>
+                                <Ionicons
+                                    name={isLoadingLocation ? "refresh" : "location"}
+                                    size={18}
+                                    color={isLoadingLocation ? COLORS.turquoise : COLORS.black}
+                                />
+                                <Text style={styles.locationStatusText}>{locationStatus}</Text>
+                                {isLoadingLocation && (
+                                    <View style={styles.loadingSpinner}>
+                                        <Ionicons name="refresh" size={16} color={COLORS.turquoise} />
+                                    </View>
+                                )}
+                            </View>
                         </View>
 
-                        <View style={styles.buttonRow}>
-                            <TouchableOpacity
-                                style={[styles.locationButton, isLoadingLocation && styles.disabledButton]}
-                                onPress={getCurrentLocation}
-                                disabled={isLoadingLocation}
-                            >
-                                <Ionicons name="locate" size={16} color={COLORS.white} />
-                                <Text style={styles.locationButtonText}>
-                                    {isLoadingLocation ? 'Getting...' : 'Update'}
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.findButton} onPress={handleFindParking}>
-                                <Ionicons name="search" size={20} color={COLORS.white} />
-                                <Text style={styles.findButtonText}>Find Parking</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity style={styles.findButton} onPress={handleFindParking}>
+                            <Ionicons name="search" size={20} color={COLORS.white} />
+                            <Text style={styles.findButtonText}>Find Parking</Text>
+                        </TouchableOpacity>
                     </View>
 
                     <FlatList
@@ -595,58 +589,30 @@ const styles = StyleSheet.create({
         color: COLORS.black,
     },
     locationStatusContainer: {
+        backgroundColor: 'transparent',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+    },
+    locationStatusContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: COLORS.cardBackground,
-        borderRadius: 8,
-        padding: 10,
-        marginBottom: 15,
-        borderWidth: 1,
-        borderColor: COLORS.border,
     },
     locationStatusText: {
         fontSize: 14,
         color: COLORS.secondaryText,
-        textAlign: 'center',
-        flex: 1,
-    },
-    loadingIndicator: {
+        fontWeight: '400',
         marginLeft: 8,
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    locationButton: {
-        backgroundColor: COLORS.secondaryText,
-        borderRadius: 12,
-        paddingVertical: 16,
-        paddingHorizontal: 8,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
         flex: 1,
-        minHeight: 56,
-        shadowColor: COLORS.black,
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    locationButtonText: {
-        color: COLORS.white,
-        fontSize: 13,
-        fontWeight: '600',
-        marginLeft: 4,
         textAlign: 'center',
-        flexShrink: 1,
+        fontStyle: 'italic',
+    },
+    loadingSpinner: {
+        marginLeft: 8,
     },
     findButton: {
         backgroundColor: COLORS.turquoise,
@@ -656,7 +622,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        flex: 1.5,
         minHeight: 56,
         shadowColor: COLORS.black,
         shadowOffset: {
