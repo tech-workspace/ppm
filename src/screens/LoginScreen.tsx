@@ -9,6 +9,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -124,6 +125,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 >
                     <ScrollView contentContainerStyle={styles.scrollContent}>
                         <View style={styles.content}>
+                            <View style={styles.logoContainer}>
+                                <Image
+                                    source={require('../../assets/pp1.png')}
+                                    style={styles.logo}
+                                    resizeMode="contain"
+                                />
+                            </View>
                             <Text style={styles.title}>PeekPark</Text>
                             <Text style={styles.subtitle}>Welcome Back</Text>
 
@@ -219,6 +227,14 @@ const styles = StyleSheet.create({
     content: {
         paddingHorizontal: 30,
         paddingVertical: 20,
+    },
+    logoContainer: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    logo: {
+        width: 120,
+        height: 120,
     },
     title: {
         fontSize: 32,
