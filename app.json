@@ -1,29 +1,54 @@
 {
   "expo": {
-    "name": "PeekPark",
+    "name": "Peek Park",
     "slug": "PeekPark",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/pp1.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "sdkVersion": "53.0.0",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/pp1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#40E0D0"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to find nearby parking lots and provide navigation.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to find nearby parking lots and provide navigation."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyCI4rF53Z351u_VwN5d6xZmNdyPsgwEq3o"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/pp1.png",
+        "backgroundColor": "#40E0D0"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCI4rF53Z351u_VwN5d6xZmNdyPsgwEq3o"
+        }
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/pp1.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow PeekPark to use your location to find nearby parking lots."
+        }
+      ]
+    ]
   }
 }
