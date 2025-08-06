@@ -1,7 +1,9 @@
 <<<<<<< HEAD
+
 # ppm
-peekpark mobile app
-=======
+
+# peekpark mobile app v1
+
 # PeekPark - React Native Mobile Application
 
 A mockup/wireframe React Native mobile application for finding and navigating to parking lots. Built with Expo and TypeScript.
@@ -9,13 +11,15 @@ A mockup/wireframe React Native mobile application for finding and navigating to
 ## Features
 
 ### 🔐 Authentication
+
 - **Sign Up**: Create account with name and mobile number
 - **Login**: OTP-based authentication with mobile number
 - **Profile Management**: View user details and sign out
 
 ### 🚗 Parking Discovery
+
 - **Find Parking**: Search for nearby parking lots with filtering by type
-- **Parking Types**: 
+- **Parking Types**:
   - P: Primary Parking (turquoise and white)
   - S: Standard Parking (turquoise and black)
   - SR: Standard Residential Parking (turquoise and black)
@@ -23,6 +27,7 @@ A mockup/wireframe React Native mobile application for finding and navigating to
 - **Lot Details**: View comprehensive information including price, availability, location
 
 ### 🗺️ Interactive Map
+
 - **Google Maps Integration**: Custom map with parking lot pins (mobile only)
 - **Unique Markers**: Each parking type has distinct icons and colors
 - **Navigation**: Navigate to selected parking lots
@@ -30,6 +35,7 @@ A mockup/wireframe React Native mobile application for finding and navigating to
 - **Web Fallback**: Parking lot list view for web browsers
 
 ### 🎨 Design
+
 - **Color Scheme**: Turquoise, white, and black theme
 - **Modern UI**: Clean, intuitive interface with proper safe area handling
 - **Bottom Tabs**: Easy navigation between main features
@@ -79,29 +85,33 @@ src/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd PeekPark
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Start the development server**
+
    ```bash
    npm start
    ```
 
 4. **Run on device/simulator**
+
    ```bash
    # For iOS
    npm run ios
-   
+
    # For Android
    npm run android
-   
+
    # For web
    npm run web
    ```
@@ -151,17 +161,20 @@ The application uses mock data for development purposes:
 ## Development Notes
 
 ### Authentication Flow
+
 - OTP codes are logged to the console for testing
 - User data is persisted using AsyncStorage
 - Authentication state is managed through React Context
 
 ### Location Services
+
 - Default location is set to Dubai (25.2048, 55.2708) for demo purposes
 - Real location services require proper permissions
 - Map functionality is available on mobile devices only (iOS/Android)
 - Web browsers show a parking lot list fallback view
 
 ### Navigation
+
 - Bottom tab navigation for main app features
 - Stack navigation for authentication flow
 - Proper safe area handling for different devices
@@ -169,10 +182,12 @@ The application uses mock data for development purposes:
 ## Testing
 
 ### Test Credentials
+
 - **Mobile Number**: `+971501234567`
 - **OTP**: Check console logs for generated OTP codes
 
 ### Features to Test
+
 1. **Sign Up**: Create new account
 2. **Login**: Use existing mobile number and OTP
 3. **Find Parking**: Filter and search for parking lots
@@ -194,5 +209,6 @@ This project is for demonstration purposes only.
 
 ## Support
 
-For questions or issues, please create an issue in the repository. 
->>>>>>> af67968 (add ppm files v1)
+For questions or issues, please create an issue in the repository.
+
+> > > > > > > af67968 (add ppm files v1)
