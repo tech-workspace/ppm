@@ -106,7 +106,7 @@ const AppNavigator = () => {
                     </>
                 ) : (
                     // Main app screens
-                    <Stack.Screen name="MainApp" component={MainTabNavigator} />
+                    <Stack.Screen name="MainTabs" component={MainTabNavigator} />
                 )}
             </Stack.Navigator>
         </NavigationContainer>

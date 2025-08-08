@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can only access their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow creation during signup
+      allow create: if request.auth != null;
+    }
+    
+    // OTP verifications - allow authenticated users to create/read
+    match /otp_verifications/{verificationId} {
+      allow read, write: if request.auth != null;
+      // Allow creation during OTP verification process
+      allow create: if true;
+    }
+    
+    // Parking lots - public read, authenticated write
+    match /parking_lots/{lotId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Bookings - users can only access their own bookings
+    match /bookings/{bookingId} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || request.auth.uid == request.resource.data.userId);
+    }
+    
+    // Devices collection - users can only access their own device data
+    match /devices/{deviceId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}

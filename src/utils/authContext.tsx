@@ -1,15 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User } from '../types';
-import { mockUser } from './mockData';
+import { User, AuthResponse, LoginFormData, SignupFormData, OTPVerificationData, MobileLoginData, DeviceInfo } from '../types';
+import { deviceAuth } from './firebase';
 
 interface AuthContextType {
     user: User | null;
     isLoggedIn: boolean;
-    login: (mobileNumber: string) => Promise<boolean>;
-    signup: (name: string, mobileNumber: string) => Promise<boolean>;
-    logout: () => void;
-    verifyOTP: (otp: string) => Promise<boolean>;
+    isLoading: boolean;
+    login: (data: LoginFormData) => Promise<AuthResponse>;
+    signup: (data: SignupFormData) => Promise<AuthResponse>;
+    logout: () => Promise<void>;
+    resetPassword: (email: string) => Promise<AuthResponse>;
+    // New mobile authentication methods
+    sendOTP: (data: MobileLoginData) => Promise<AuthResponse>;
+    verifyOTP: (data: OTPVerificationData, name?: string) => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,149 +28,198 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // Load user from AsyncStorage on app start
+        const loadUserFromStorage = async () => {
+            try {
+                const storedUser = await AsyncStorage.getItem('user');
+                if (storedUser) {
+                    const parsedUser = JSON.parse(storedUser);
+                    setUser(parsedUser);
+                }
+            } catch (error) {
+                console.error('Error loading user from storage:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
         loadUserFromStorage();
     }, []);
 
-    const loadUserFromStorage = async () => {
-        try {
-            const storedUser = await AsyncStorage.getItem('user');
+    const createAppUser = (userData: any): User => {
+        return {
+            id: userData.uid,
+            uid: userData.uid,
+            name: userData.name,
+            email: userData.email,
+            mobileNumber: userData.mobileNumber,
+            photo: userData.photo,
+            isLoggedIn: true,
+            deviceId: userData.deviceId,
+            deviceInfo: userData.deviceInfo,
+            createdAt: userData.createdAt?.toDate ? userData.createdAt.toDate() : userData.createdAt,
+            lastLoginAt: userData.lastLoginAt?.toDate ? userData.lastLoginAt.toDate() : userData.lastLoginAt,
+            isActive: userData.isActive,
+            isVerified: userData.isVerified
+        };
+    };
 
-            if (storedUser) {
-                const userData = JSON.parse(storedUser);
-                setUser(userData);
+    const login = async (data: LoginFormData): Promise<AuthResponse> => {
+        try {
+            setIsLoading(true);
+            // For mobile-only auth, we'll use a different approach
+            if (data.mobileNumber) {
+                return { success: false, error: 'Please use sendOTP for mobile authentication' };
             }
-        } catch (error) {
-            console.error('Error loading user from storage:', error);
-        }
-    };
+            const result = await deviceAuth.loginUser(data.email || '', data.password || '');
 
-    const generateOTP = (): string => {
-        // For demo purposes, use a fixed OTP: 123456
-        // In production, this would be a random 6-digit number
-        const demoOTP = '123456';
-        console.log('🔐 DEMO OTP GENERATED:', demoOTP);
-        console.log('📱 Use this OTP to login:', demoOTP);
-        return demoOTP;
-    };
-
-    const login = async (mobileNumber: string): Promise<boolean> => {
-        try {
-            // For demo purposes, accept any mobile number
-            // In real app, this would validate against a database
-
-            // Check if user exists in storage first
-            const storedUser = await AsyncStorage.getItem('user');
-            if (storedUser) {
-                const userData = JSON.parse(storedUser);
-                if (userData.mobileNumber === mobileNumber) {
-                    // Existing user - generate OTP
-                    const otp = generateOTP();
-                    await AsyncStorage.setItem('userOTP', otp);
-
-                    console.log('🎯 ==========================================');
-                    console.log('📞 OTP SENT TO:', mobileNumber);
-                    console.log('🔢 OTP CODE:', otp);
-                    console.log('🎯 ==========================================');
-
-                    return true;
+            if (result.success) {
+                const firebaseUser = await deviceAuth.getCurrentUser();
+                if (firebaseUser) {
+                    const userData = await deviceAuth.getUserData(firebaseUser.uid);
+                    if (userData) {
+                        const appUser = createAppUser(userData);
+                        setUser(appUser);
+                        await AsyncStorage.setItem('user', JSON.stringify(appUser));
+                        return { success: true, user: appUser };
+                    }
                 }
             }
 
-            // If no existing user found, create a new one for demo
-            const newUser: User = {
-                id: Date.now().toString(),
-                name: 'Demo User',
-                mobileNumber: mobileNumber,
-                isLoggedIn: false,
-            };
-
-            await AsyncStorage.setItem('user', JSON.stringify(newUser));
-            // Don't set user state here - wait until OTP verification
-
-            // Generate OTP for new user
-            const otp = generateOTP();
-            await AsyncStorage.setItem('userOTP', otp);
-
-            console.log('🎯 ==========================================');
-            console.log('📞 OTP SENT TO:', mobileNumber);
-            console.log('🔢 OTP CODE:', otp);
-            console.log('🎯 ==========================================');
-
-            return true;
-        } catch (error) {
+            return { success: false, error: result.error };
+        } catch (error: any) {
             console.error('Login error:', error);
-            return false;
+            return { success: false, error: error.message || 'Login failed' };
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const signup = async (name: string, mobileNumber: string): Promise<boolean> => {
+    const signup = async (data: SignupFormData): Promise<AuthResponse> => {
         try {
-            // Mock signup - in real app, this would call an API
-            const newUser: User = {
-                id: Date.now().toString(),
-                name,
-                mobileNumber,
-                isLoggedIn: false,
-            };
+            setIsLoading(true);
 
-            await AsyncStorage.setItem('user', JSON.stringify(newUser));
-            // Don't set user state here - wait until OTP verification
+            // Validate password confirmation if password is provided
+            if (data.password && data.confirmPassword && data.password !== data.confirmPassword) {
+                return { success: false, error: 'Passwords do not match' };
+            }
 
-            // Generate OTP for first login
-            const otp = generateOTP();
-            await AsyncStorage.setItem('userOTP', otp);
+            // Validate password strength if password is provided
+            if (data.password && data.password.length < 6) {
+                return { success: false, error: 'Password must be at least 6 characters long' };
+            }
 
-            console.log(`OTP sent to ${mobileNumber}: ${otp}`);
-            return true;
-        } catch (error) {
+            if (data.password) {
+                // Email/password signup
+                const result = await deviceAuth.registerUser(data.email || '', data.password, data.name);
+
+                if (result.success) {
+                    const firebaseUser = await deviceAuth.getCurrentUser();
+                    if (firebaseUser) {
+                        const userData = await deviceAuth.getUserData(firebaseUser.uid);
+                        if (userData) {
+                            const appUser = createAppUser({ ...userData, mobileNumber: data.mobileNumber });
+                            setUser(appUser);
+                            await AsyncStorage.setItem('user', JSON.stringify(appUser));
+                            return { success: true, user: appUser };
+                        }
+                    }
+                }
+
+                return { success: false, error: result.error };
+            } else {
+                // Mobile-only signup (requires OTP verification)
+                return { success: false, error: 'Please use sendOTP and verifyOTP for mobile authentication' };
+            }
+        } catch (error: any) {
             console.error('Signup error:', error);
-            return false;
+            return { success: false, error: error.message || 'Signup failed' };
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const verifyOTP = async (otp: string): Promise<boolean> => {
+    const sendOTP = async (data: MobileLoginData): Promise<AuthResponse> => {
         try {
-            // Read OTP from AsyncStorage
-            const storedOTP = await AsyncStorage.getItem('userOTP');
+            setIsLoading(true);
+            const result = await deviceAuth.sendOTP(data.mobileNumber);
 
-            if (storedOTP && storedOTP === otp) {
-                // OTP is correct, log user in
-                const currentUser = user || mockUser;
-                const loggedInUser = { ...currentUser, isLoggedIn: true };
-
-                setUser(loggedInUser);
-                await AsyncStorage.setItem('user', JSON.stringify(loggedInUser));
-                await AsyncStorage.removeItem('userOTP');
-
-                return true;
+            if (result.success) {
+                return {
+                    success: true,
+                    verificationId: result.verificationId
+                };
+            } else {
+                return {
+                    success: false,
+                    error: result.error,
+                    deviceInfo: result.deviceInfo
+                };
             }
-            return false;
-        } catch (error) {
-            console.error('OTP verification error:', error);
-            return false;
+        } catch (error: any) {
+            console.error('Send OTP error:', error);
+            return { success: false, error: error.message || 'Failed to send OTP' };
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const logout = async () => {
+    const verifyOTP = async (data: OTPVerificationData, name?: string): Promise<AuthResponse> => {
         try {
-            if (user) {
-                const loggedOutUser = { ...user, isLoggedIn: false };
-                setUser(loggedOutUser);
-                await AsyncStorage.setItem('user', JSON.stringify(loggedOutUser));
+            setIsLoading(true);
+            const result = await deviceAuth.verifyOTP(data.mobileNumber, data.verificationId, data.otp, name);
+
+            if (result.success && result.user) {
+                const appUser = createAppUser(result.user);
+                setUser(appUser);
+                await AsyncStorage.setItem('user', JSON.stringify(appUser));
+                return { success: true, user: appUser };
             }
+
+            return { success: false, error: result.error };
+        } catch (error: any) {
+            console.error('Verify OTP error:', error);
+            return { success: false, error: error.message || 'OTP verification failed' };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const logout = async (): Promise<void> => {
+        try {
+            setIsLoading(true);
+            await deviceAuth.logoutUser();
+            setUser(null);
+            await AsyncStorage.removeItem('user');
         } catch (error) {
             console.error('Logout error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const resetPassword = async (email: string): Promise<AuthResponse> => {
+        try {
+            const result = await deviceAuth.resetPassword(email);
+            return result;
+        } catch (error: any) {
+            console.error('Password reset error:', error);
+            return { success: false, error: error.message || 'Password reset failed' };
         }
     };
 
     const value: AuthContextType = {
         user,
         isLoggedIn: user?.isLoggedIn || false,
+        isLoading,
         login,
         signup,
         logout,
+        resetPassword,
+        sendOTP,
         verifyOTP,
     };
 

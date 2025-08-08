@@ -6,6 +6,7 @@ import {
     StyleSheet,
     Alert,
     Image,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,7 +15,7 @@ import { COLORS } from '../constants/colors';
 import { useAuth } from '../utils/authContext';
 
 const ProfileScreen: React.FC = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, isLoading } = useAuth();
 
     const handleSignOut = () => {
         Alert.alert(
@@ -28,12 +29,21 @@ const ProfileScreen: React.FC = () => {
                 {
                     text: 'Sign Out',
                     style: 'destructive',
-                    onPress: () => {
-                        logout();
+                    onPress: async () => {
+                        await logout();
                     },
                 },
             ]
         );
+    };
+
+    const formatDate = (date: Date | undefined) => {
+        if (!date) return 'Not available';
+        return new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
     };
 
     if (!user) {
@@ -56,63 +66,110 @@ const ProfileScreen: React.FC = () => {
                     <Text style={styles.headerTitle}>Profile</Text>
                 </View>
 
-                <View style={styles.content}>
-                    <View style={styles.profileSection}>
-                        <View style={styles.avatarContainer}>
-                            {user.photo ? (
-                                <Image source={{ uri: user.photo }} style={styles.avatar} />
-                            ) : (
-                                <View style={styles.avatarPlaceholder}>
-                                    <Ionicons name="person" size={40} color={COLORS.white} />
+                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                    <View style={styles.content}>
+                        <View style={styles.profileSection}>
+                            <View style={styles.avatarContainer}>
+                                {user.photo ? (
+                                    <Image source={{ uri: user.photo }} style={styles.avatar} />
+                                ) : (
+                                    <View style={styles.avatarPlaceholder}>
+                                        <Ionicons name="person" size={40} color={COLORS.white} />
+                                    </View>
+                                )}
+                            </View>
+
+                            <Text style={styles.userName}>{user.name}</Text>
+                            <Text style={styles.userEmail}>{user.email}</Text>
+                            {user.isActive && (
+                                <View style={styles.statusBadge}>
+                                    <Text style={styles.statusText}>Active</Text>
                                 </View>
                             )}
                         </View>
 
-                        <Text style={styles.userName}>{user.name}</Text>
-                        <Text style={styles.userMobile}>{user.mobileNumber}</Text>
-                    </View>
-
-                    <View style={styles.infoSection}>
-                        <View style={styles.infoItem}>
-                            <View style={styles.infoIcon}>
-                                <Ionicons name="person-outline" size={24} color={COLORS.turquoise} />
+                        <View style={styles.infoSection}>
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Ionicons name="person-outline" size={24} color={COLORS.turquoise} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Full Name</Text>
+                                    <Text style={styles.infoValue}>{user.name}</Text>
+                                </View>
                             </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Full Name</Text>
-                                <Text style={styles.infoValue}>{user.name}</Text>
+
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Ionicons name="mail-outline" size={24} color={COLORS.turquoise} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Email Address</Text>
+                                    <Text style={styles.infoValue}>{user.email}</Text>
+                                </View>
+                            </View>
+
+                            {user.mobileNumber && (
+                                <View style={styles.infoItem}>
+                                    <View style={styles.infoIcon}>
+                                        <Ionicons name="call-outline" size={24} color={COLORS.turquoise} />
+                                    </View>
+                                    <View style={styles.infoContent}>
+                                        <Text style={styles.infoLabel}>Mobile Number</Text>
+                                        <Text style={styles.infoValue}>{user.mobileNumber}</Text>
+                                    </View>
+                                </View>
+                            )}
+
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Ionicons name="calendar-outline" size={24} color={COLORS.turquoise} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Member Since</Text>
+                                    <Text style={styles.infoValue}>{formatDate(user.createdAt)}</Text>
+                                </View>
+                            </View>
+
+                            {user.lastLoginAt && (
+                                <View style={styles.infoItem}>
+                                    <View style={styles.infoIcon}>
+                                        <Ionicons name="time-outline" size={24} color={COLORS.turquoise} />
+                                    </View>
+                                    <View style={styles.infoContent}>
+                                        <Text style={styles.infoLabel}>Last Login</Text>
+                                        <Text style={styles.infoValue}>{formatDate(user.lastLoginAt)}</Text>
+                                    </View>
+                                </View>
+                            )}
+
+                            <View style={styles.infoItem}>
+                                <View style={styles.infoIcon}>
+                                    <Ionicons name="phone-portrait-outline" size={24} color={COLORS.turquoise} />
+                                </View>
+                                <View style={styles.infoContent}>
+                                    <Text style={styles.infoLabel}>Device ID</Text>
+                                    <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="middle">
+                                        {user.deviceId || 'Not available'}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
 
-                        <View style={styles.infoItem}>
-                            <View style={styles.infoIcon}>
-                                <Ionicons name="call-outline" size={24} color={COLORS.turquoise} />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Mobile Number</Text>
-                                <Text style={styles.infoValue}>{user.mobileNumber}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.infoItem}>
-                            <View style={styles.infoIcon}>
-                                <Ionicons name="mail-outline" size={24} color={COLORS.turquoise} />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Account Status</Text>
-                                <Text style={styles.infoValue}>
-                                    {user.isLoggedIn ? 'Active' : 'Inactive'}
+                        <View style={styles.actionsSection}>
+                            <TouchableOpacity
+                                style={[styles.actionButton, isLoading && styles.actionButtonDisabled]}
+                                onPress={handleSignOut}
+                                disabled={isLoading}
+                            >
+                                <Ionicons name="log-out-outline" size={24} color={COLORS.error} />
+                                <Text style={styles.actionButtonText}>
+                                    {isLoading ? 'Signing Out...' : 'Sign Out'}
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
-
-                    <View style={styles.actionsSection}>
-                        <TouchableOpacity style={styles.actionButton} onPress={handleSignOut}>
-                            <Ionicons name="log-out-outline" size={24} color={COLORS.error} />
-                            <Text style={styles.actionButtonText}>Sign Out</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                </ScrollView>
             </LinearGradient>
         </SafeAreaView>
     );
@@ -146,10 +203,13 @@ const styles = StyleSheet.create({
         color: COLORS.black,
         textAlign: 'center',
     },
-    content: {
+    scrollView: {
         flex: 1,
+    },
+    content: {
         paddingHorizontal: 20,
         paddingTop: 30,
+        paddingBottom: 30,
     },
     profileSection: {
         alignItems: 'center',
@@ -181,9 +241,21 @@ const styles = StyleSheet.create({
         color: COLORS.black,
         marginBottom: 5,
     },
-    userMobile: {
+    userEmail: {
         fontSize: 16,
         color: COLORS.secondaryText,
+        marginBottom: 10,
+    },
+    statusBadge: {
+        backgroundColor: COLORS.turquoise,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    statusText: {
+        color: COLORS.white,
+        fontSize: 12,
+        fontWeight: '600',
     },
     infoSection: {
         backgroundColor: COLORS.white,
@@ -245,6 +317,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 15,
+    },
+    actionButtonDisabled: {
+        opacity: 0.6,
     },
     actionButtonText: {
         fontSize: 16,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -10,11 +10,13 @@ import {
     Platform,
     ScrollView,
     Image,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { useAuth } from '../utils/authContext';
+import { LoginFormData, DeviceInfo } from '../types';
 
 interface LoginScreenProps {
     navigation: any;
@@ -23,13 +25,31 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     const [mobileNumber, setMobileNumber] = useState('');
     const [otp, setOtp] = useState('');
+    const [verificationId, setVerificationId] = useState('');
     const [showOTPInput, setShowOTPInput] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const { login, verifyOTP } = useAuth();
-    // Debug useEffect to monitor showOTPInput changes
-    useEffect(() => {
-        console.log('showOTPInput changed to:', showOTPInput);
-    }, [showOTPInput]);
+    const [isNewUser, setIsNewUser] = useState(false);
+    const [name, setName] = useState('');
+    const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+    const [isResendDisabled, setIsResendDisabled] = useState(false);
+    const [resendCountdown, setResendCountdown] = useState(0);
+    const { sendOTP, verifyOTP, isLoading } = useAuth();
+
+    // Countdown timer for resend OTP
+    React.useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (resendCountdown > 0) {
+            interval = setInterval(() => {
+                setResendCountdown((prev) => {
+                    if (prev <= 1) {
+                        setIsResendDisabled(false);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendCountdown]);
 
     const handleSendOTP = async () => {
         if (!mobileNumber.trim()) {
@@ -42,77 +62,105 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             return;
         }
 
-        setIsLoading(true);
-        try {
-            const success = await login(mobileNumber.trim());
-            console.log('Login result:', success);
-            if (success) {
-                // Set state immediately
-                setShowOTPInput(true);
-                console.log('showOTPInput set to true immediately');
+        const result = await sendOTP({ mobileNumber: mobileNumber.trim() });
 
-                // Show alert after a delay to ensure state update is processed
-                setTimeout(() => {
-                    Alert.alert(
-                        'OTP Sent Successfully!',
-                        'Please enter the OTP code below.\n\n💡 Demo OTP: 123456'
-                    );
-                }, 100);
+        if (result.success && result.verificationId) {
+            setVerificationId(result.verificationId);
+            setShowOTPInput(true);
+            setIsResendDisabled(true);
+            setResendCountdown(30); // 30 seconds cooldown
+            Alert.alert('Success', 'OTP sent successfully! Please check your phone for the verification code.');
+        } else {
+            if (result.deviceInfo) {
+                // Device mismatch - show detailed error
+                setDeviceInfo(result.deviceInfo);
+                Alert.alert(
+                    'Device Restriction',
+                    result.error || 'This account is linked to another device.',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => {
+                                setDeviceInfo(null);
+                                setMobileNumber('');
+                            }
+                        }
+                    ]
+                );
             } else {
-                Alert.alert('Error', 'Something went wrong. Please try again.');
+                Alert.alert('Error', result.error || 'Failed to send OTP');
             }
-        } catch (error) {
-            console.error('Login error:', error);
-            Alert.alert('Error', 'Something went wrong. Please try again.');
-        } finally {
-            setIsLoading(false);
         }
     };
 
     const handleVerifyOTP = async () => {
-        if (!otp.trim() || otp.length !== 6) {
+        if (!otp.trim()) {
+            Alert.alert('Error', 'Please enter the OTP');
+            return;
+        }
+
+        if (otp.length !== 6) {
             Alert.alert('Error', 'Please enter a valid 6-digit OTP');
             return;
         }
 
-        setIsLoading(true);
-        try {
-            const success = await verifyOTP(otp.trim());
-            if (success) {
-                Alert.alert('Success', 'Login successful!');
-                // Navigation will be handled by the main app based on auth state
+        const result = await verifyOTP({
+            mobileNumber: mobileNumber.trim(),
+            verificationId,
+            otp: otp.trim()
+        }, isNewUser ? name : undefined);
+
+        if (result.success && result.user) {
+            Alert.alert('Success', 'Login successful!');
+            // Navigation will be handled by the main app based on auth state
+        } else {
+            if (result.error?.includes('Name is required')) {
+                setIsNewUser(true);
+                Alert.alert('New User', 'Please enter your name to complete registration');
             } else {
-                Alert.alert('Error', 'Invalid OTP. Please try again.');
+                Alert.alert('Error', result.error || 'OTP verification failed');
             }
-        } catch (error) {
-            Alert.alert('Error', 'Something went wrong. Please try again.');
-        } finally {
-            setIsLoading(false);
         }
     };
 
-    const handleResendOTP = async () => {
-        if (!mobileNumber.trim()) {
-            Alert.alert('Error', 'Please enter your mobile number first');
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            const success = await login(mobileNumber.trim());
-            if (success) {
-                Alert.alert('OTP Resent', 'Please check your phone for the new OTP code');
-            } else {
-                Alert.alert('Error', 'Failed to resend OTP. Please try again.');
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Something went wrong. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
+    const handleResendOTP = () => {
+        if (isResendDisabled) return;
+        
+        setOtp('');
+        setIsResendDisabled(true);
+        setResendCountdown(30);
+        handleSendOTP();
     };
 
-    console.log('Rendering LoginScreen, showOTPInput:', showOTPInput);
+    const renderDeviceMismatchInfo = () => {
+        if (!deviceInfo) return null;
+
+        return (
+            <View style={styles.deviceMismatchContainer}>
+                <Text style={styles.deviceMismatchTitle}>Account Linked to Another Device</Text>
+                <View style={styles.deviceInfoContainer}>
+                    <Text style={styles.deviceInfoLabel}>Device Name:</Text>
+                    <Text style={styles.deviceInfoValue}>{deviceInfo.deviceName}</Text>
+                </View>
+                <View style={styles.deviceInfoContainer}>
+                    <Text style={styles.deviceInfoLabel}>Manufacturer:</Text>
+                    <Text style={styles.deviceInfoValue}>{deviceInfo.manufacturer}</Text>
+                </View>
+                <View style={styles.deviceInfoContainer}>
+                    <Text style={styles.deviceInfoLabel}>Model:</Text>
+                    <Text style={styles.deviceInfoValue}>{deviceInfo.modelName}</Text>
+                </View>
+                <View style={styles.deviceInfoContainer}>
+                    <Text style={styles.deviceInfoLabel}>OS Version:</Text>
+                    <Text style={styles.deviceInfoValue}>{deviceInfo.osVersion}</Text>
+                </View>
+                <Text style={styles.deviceMismatchMessage}>
+                    Please use the original device to access this account.
+                </Text>
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <LinearGradient
@@ -133,75 +181,128 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                                 />
                             </View>
                             <Text style={styles.title}>PeekPark</Text>
-                            <Text style={styles.subtitle}>Welcome Back</Text>
+                            <Text style={styles.subtitle}>Mobile Authentication</Text>
 
-                            <View style={styles.form}>
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.label}>Mobile Number</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Enter your mobile number"
-                                        placeholderTextColor={COLORS.secondaryText}
-                                        value={mobileNumber}
-                                        onChangeText={setMobileNumber}
-                                        keyboardType="phone-pad"
-                                        maxLength={15}
-                                        editable={!showOTPInput}
-                                    />
-                                </View>
+                            {deviceInfo ? (
+                                renderDeviceMismatchInfo()
+                            ) : (
+                                <View style={styles.form}>
+                                    {!showOTPInput ? (
+                                        <>
+                                            <View style={styles.inputContainer}>
+                                                <Text style={styles.label}>Mobile Number</Text>
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="Enter your mobile number"
+                                                    placeholderTextColor={COLORS.secondaryText}
+                                                    value={mobileNumber}
+                                                    onChangeText={setMobileNumber}
+                                                    keyboardType="phone-pad"
+                                                    maxLength={15}
+                                                    editable={!isLoading}
+                                                />
+                                                <Text style={styles.inputHint}>
+                                                    Include country code (e.g., +1 for US)
+                                                </Text>
+                                            </View>
 
-                                {!showOTPInput ? (
-                                    <TouchableOpacity
-                                        style={[styles.button, isLoading && styles.buttonDisabled]}
-                                        onPress={handleSendOTP}
-                                        disabled={isLoading}
-                                    >
-                                        <Text style={styles.buttonText}>
-                                            {isLoading ? 'Sending OTP...' : 'Send OTP'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ) : (
-                                    <>
-                                        <View style={styles.inputContainer}>
-                                            <Text style={styles.label}>OTP Code</Text>
-                                            <TextInput
-                                                style={styles.input}
-                                                placeholder="Enter 6-digit OTP"
-                                                placeholderTextColor={COLORS.secondaryText}
-                                                value={otp}
-                                                onChangeText={setOtp}
-                                                keyboardType="number-pad"
-                                                maxLength={6}
-                                            />
-                                        </View>
+                                            <TouchableOpacity
+                                                style={[styles.button, isLoading && styles.buttonDisabled]}
+                                                onPress={handleSendOTP}
+                                                disabled={isLoading}
+                                            >
+                                                {isLoading ? (
+                                                    <ActivityIndicator color={COLORS.white} size="small" />
+                                                ) : (
+                                                    <Text style={styles.buttonText}>Send OTP</Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {isNewUser && (
+                                                <View style={styles.inputContainer}>
+                                                    <Text style={styles.label}>Full Name</Text>
+                                                    <TextInput
+                                                        style={styles.input}
+                                                        placeholder="Enter your full name"
+                                                        placeholderTextColor={COLORS.secondaryText}
+                                                        value={name}
+                                                        onChangeText={setName}
+                                                        maxLength={50}
+                                                        editable={!isLoading}
+                                                    />
+                                                </View>
+                                            )}
 
-                                        <TouchableOpacity
-                                            style={[styles.button, isLoading && styles.buttonDisabled]}
-                                            onPress={handleVerifyOTP}
-                                            disabled={isLoading}
-                                        >
-                                            <Text style={styles.buttonText}>
-                                                {isLoading ? 'Verifying...' : 'Verify OTP'}
-                                            </Text>
+                                            <View style={styles.inputContainer}>
+                                                <Text style={styles.label}>OTP Code</Text>
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="Enter 6-digit OTP"
+                                                    placeholderTextColor={COLORS.secondaryText}
+                                                    value={otp}
+                                                    onChangeText={setOtp}
+                                                    keyboardType="numeric"
+                                                    maxLength={6}
+                                                    editable={!isLoading}
+                                                />
+                                                <Text style={styles.inputHint}>
+                                                    Enter the 6-digit code sent to your phone
+                                                </Text>
+                                            </View>
+
+                                            <TouchableOpacity
+                                                style={[styles.button, isLoading && styles.buttonDisabled]}
+                                                onPress={handleVerifyOTP}
+                                                disabled={isLoading}
+                                            >
+                                                {isLoading ? (
+                                                    <ActivityIndicator color={COLORS.white} size="small" />
+                                                ) : (
+                                                    <Text style={styles.buttonText}>
+                                                        {isNewUser ? 'Create Account' : 'Verify & Login'}
+                                                    </Text>
+                                                )}
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={[styles.resendButton, isResendDisabled && styles.resendButtonDisabled]}
+                                                onPress={handleResendOTP}
+                                                disabled={isResendDisabled || isLoading}
+                                            >
+                                                <Text style={[styles.resendText, isResendDisabled && styles.resendTextDisabled]}>
+                                                    {isResendDisabled 
+                                                        ? `Resend OTP (${resendCountdown}s)` 
+                                                        : 'Resend OTP'
+                                                    }
+                                                </Text>
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={styles.backButton}
+                                                onPress={() => {
+                                                    setShowOTPInput(false);
+                                                    setOtp('');
+                                                    setIsNewUser(false);
+                                                    setName('');
+                                                    setIsResendDisabled(false);
+                                                    setResendCountdown(0);
+                                                }}
+                                            >
+                                                <Text style={styles.backText}>Back to Mobile Number</Text>
+                                            </TouchableOpacity>
+                                        </>
+                                    )}
+
+                                    <View style={styles.signupContainer}>
+                                        <Text style={styles.signupText}>Don't have an account? </Text>
+                                        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                                            <Text style={styles.signupLink}>Sign Up</Text>
                                         </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.resendButton}
-                                            onPress={handleResendOTP}
-                                            disabled={isLoading}
-                                        >
-                                            <Text style={styles.resendText}>Resend OTP</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                )}
-
-                                <View style={styles.signupContainer}>
-                                    <Text style={styles.signupText}>Don't have an account? </Text>
-                                    <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                                        <Text style={styles.signupLink}>Sign Up</Text>
-                                    </TouchableOpacity>
+                                    </View>
                                 </View>
-                            </View>
+                            )}
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
@@ -271,6 +372,12 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: COLORS.black,
     },
+    inputHint: {
+        fontSize: 12,
+        color: COLORS.secondaryText,
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
     button: {
         backgroundColor: COLORS.turquoise,
         borderRadius: 12,
@@ -297,12 +404,71 @@ const styles = StyleSheet.create({
     resendButton: {
         alignItems: 'center',
         marginTop: 15,
-        paddingVertical: 10,
+    },
+    resendButtonDisabled: {
+        opacity: 0.5,
     },
     resendText: {
         color: COLORS.turquoise,
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
+        textDecorationLine: 'underline',
+    },
+    resendTextDisabled: {
+        color: COLORS.secondaryText,
+        textDecorationLine: 'none',
+    },
+    backButton: {
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    backText: {
+        color: COLORS.secondaryText,
+        fontSize: 14,
+        opacity: 0.8,
+    },
+    deviceMismatchContainer: {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 15,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: COLORS.black,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    deviceMismatchTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.black,
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    deviceInfoContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 10,
+    },
+    deviceInfoLabel: {
+        fontSize: 14,
+        color: COLORS.secondaryText,
+    },
+    deviceInfoValue: {
+        fontSize: 14,
+        color: COLORS.black,
+        fontWeight: '600',
+    },
+    deviceMismatchMessage: {
+        fontSize: 14,
+        color: COLORS.secondaryText,
+        textAlign: 'center',
+        marginTop: 15,
+        fontStyle: 'italic',
     },
     signupContainer: {
         flexDirection: 'row',

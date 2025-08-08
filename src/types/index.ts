@@ -1,9 +1,79 @@
 export interface User {
     id: string;
+    uid?: string; // Firebase UID
     name: string;
-    mobileNumber: string;
+    email?: string; // Optional for mobile-only auth
+    mobileNumber: string; // Primary authentication method
     photo?: string;
     isLoggedIn: boolean;
+    deviceId?: string; // Device unique identifier
+    deviceInfo?: DeviceInfo; // Detailed device information
+    createdAt?: Date;
+    lastLoginAt?: Date;
+    isActive?: boolean;
+    isVerified?: boolean; // OTP verification status
+}
+
+// Device information for device restriction
+export interface DeviceInfo {
+    deviceName: string;
+    deviceType: string;
+    osVersion: string;
+    modelName: string;
+    manufacturer: string;
+    brand: string;
+    appVersion: string;
+}
+
+// Firebase User type for authentication
+export interface FirebaseUserData {
+    uid: string;
+    email?: string;
+    mobileNumber: string;
+    name: string;
+    deviceId: string;
+    deviceInfo: DeviceInfo;
+    createdAt: Date;
+    lastLoginAt?: Date;
+    isActive: boolean;
+    photo?: string;
+    isVerified: boolean;
+}
+
+// Authentication response types
+export interface AuthResponse {
+    success: boolean;
+    error?: string;
+    user?: User;
+    verificationId?: string; // For OTP verification
+    deviceInfo?: DeviceInfo; // For device mismatch errors
+}
+
+// Login/Signup form data
+export interface LoginFormData {
+    mobileNumber?: string;
+    email?: string;
+    password?: string; // Optional for OTP-only auth
+}
+
+export interface SignupFormData {
+    name: string;
+    mobileNumber: string;
+    email?: string; // Optional
+    password?: string; // Optional for OTP-only auth
+    confirmPassword?: string;
+}
+
+// OTP verification data
+export interface OTPVerificationData {
+    mobileNumber: string;
+    verificationId: string;
+    otp: string;
+}
+
+// Mobile login data
+export interface MobileLoginData {
+    mobileNumber: string;
 }
 
 export interface ParkingLot {

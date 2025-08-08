@@ -4,6 +4,7 @@ import { ParkingLot, User } from '../types';
 export const mockUser: User = {
     id: '1',
     name: 'John Doe',
+    email: 'john.doe@example.com',
     mobileNumber: '+971501234567',
     photo: 'https://via.placeholder.com/100',
     isLoggedIn: false,
