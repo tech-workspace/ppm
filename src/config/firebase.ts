@@ -37,20 +37,29 @@ export const AUTH_ERRORS = {
     UNKNOWN_ERROR: 'An unknown error occurred. Please try again.',
     VERIFICATION_FAILED: 'Phone number verification failed. Please try again.',
     TOO_MANY_REQUESTS: 'Too many requests. Please try again later.',
-    INVALID_PHONE_NUMBER: 'Please enter a valid phone number.',
+    INVALID_PHONE_NUMBER: 'Please enter a valid UAE mobile number (9 digits starting with 50, 51, 52, 54, 55, 56, or 58).',
     PHONE_AUTH_DISABLED: 'Phone authentication is not enabled for this app.',
-    RECAPTCHA_REQUIRED: 'reCAPTCHA verification is required.',
-    QUOTA_EXCEEDED: 'SMS quota exceeded. Please try again later.'
+    RECAPTCHA_REQUIRED: 'reCAPTCHA verification failed. Please try again.',
+    QUOTA_EXCEEDED: 'SMS quota exceeded. Please try again later.',
+    // Production-specific error messages
+    ACCESS_DENIED: 'Access denied. Please ensure you are properly authenticated.',
+    SERVICE_UNAVAILABLE: 'Service temporarily unavailable. Please try again later.',
+    ACCOUNT_CREATION_FAILED: 'Failed to create account. Please try again.',
+    SESSION_EXPIRED: 'Your session has expired. Please log in again.',
+    UNAUTHORIZED_ACCESS: 'Unauthorized access attempt detected.'
 };
 
-// Phone authentication settings
+// Phone authentication settings for UAE
 export const PHONE_AUTH_CONFIG = {
-    // Default country code
-    DEFAULT_COUNTRY_CODE: '+1',
+    // UAE country code (fixed)
+    UAE_COUNTRY_CODE: '+971',
     // OTP timeout in seconds
     OTP_TIMEOUT: 60,
     // Maximum OTP attempts
     MAX_OTP_ATTEMPTS: 3,
     // Resend OTP cooldown in seconds
-    RESEND_COOLDOWN: 30
+    RESEND_COOLDOWN: 30,
+    // UAE phone number validation
+    UAE_PHONE_LENGTH: 9, // 9 digits after country code
+    UAE_VALID_PREFIXES: ['50', '51', '52', '54', '55', '56', '58'] // Valid UAE mobile prefixes
 }; 

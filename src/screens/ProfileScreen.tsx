@@ -30,7 +30,14 @@ const ProfileScreen: React.FC = () => {
                     text: 'Sign Out',
                     style: 'destructive',
                     onPress: async () => {
-                        await logout();
+                        try {
+                            console.log('User initiated logout from Profile screen');
+                            await logout();
+                            console.log('Logout completed from Profile screen');
+                        } catch (error) {
+                            console.error('Logout failed from Profile screen:', error);
+                            Alert.alert('Error', 'Failed to sign out. Please try again.');
+                        }
                     },
                 },
             ]

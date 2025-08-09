@@ -1,35 +1,132 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users collection - users can only access their own data
+    
+    // Helper functions for validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidUAEPhone(phone) {
+      return phone is string 
+        && phone.matches('^\\+971[0-9]{9}$')
+        && phone.size() == 13;
+    }
+    
+    function isValidDeviceInfo(data) {
+      return data.keys().hasAll(['deviceName', 'deviceType', 'manufacturer', 'brand', 'modelName', 'osVersion'])
+        && data.deviceName is string
+        && data.deviceType is string
+        && data.manufacturer is string
+        && data.brand is string
+        && data.modelName is string
+        && data.osVersion is string;
+    }
+    
+    // Users collection - restricted access
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Allow creation during signup
-      allow create: if request.auth != null;
+      // Allow user to read their own document
+      allow read: if isOwner(userId);
+      
+      // Allow user to create their own document during registration
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasAll(['uid', 'firebaseUid', 'mobileNumber', 'name', 'deviceId', 'deviceInfo', 'createdAt', 'isActive', 'isVerified'])
+        && request.resource.data.uid == userId
+        && request.resource.data.firebaseUid == request.auth.uid
+        && isValidUAEPhone(request.resource.data.mobileNumber)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.deviceId is string
+        && isValidDeviceInfo(request.resource.data.deviceInfo)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.isActive is bool
+        && request.resource.data.isVerified is bool;
+      
+      // Allow user to update specific fields of their own document
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt', 'isActive', 'name'])
+        && (request.resource.data.lastLoginAt is timestamp || !request.resource.data.keys().hasAny(['lastLoginAt']))
+        && (request.resource.data.isActive is bool || !request.resource.data.keys().hasAny(['isActive']))
+        && (request.resource.data.name is string || !request.resource.data.keys().hasAny(['name']));
+      
+      // No delete allowed for security
+      allow delete: if false;
     }
     
-    // OTP verifications - allow authenticated users to create/read
-    match /otp_verifications/{verificationId} {
-      allow read, write: if request.auth != null;
-      // Allow creation during OTP verification process
-      allow create: if true;
+    // Allow querying users by mobile number for login/registration checks
+    // This is needed for checking if a mobile number is already registered
+    match /users/{userId} {
+      allow read: if isAuthenticated() 
+        && request.query.limit <= 1
+        && resource.data.mobileNumber is string;
     }
     
-    // Parking lots - public read, authenticated write
+    // Parking lots collection - read-only for authenticated users
     match /parking_lots/{lotId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if false; // Only admin can modify parking lots
     }
     
-    // Bookings - users can only access their own bookings
+    // Bookings collection - user can only access their own bookings
     match /bookings/{bookingId} {
-      allow read, write: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || request.auth.uid == request.resource.data.userId);
+      allow read, write: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'lotId', 'startTime', 'endTime', 'status', 'createdAt'])
+        && request.resource.data.userId is string
+        && request.resource.data.lotId is string
+        && request.resource.data.startTime is timestamp
+        && request.resource.data.endTime is timestamp
+        && request.resource.data.status is string
+        && request.resource.data.createdAt is timestamp;
     }
     
-    // Devices collection - users can only access their own device data
+    // Devices collection - user can only access their own device info
     match /devices/{deviceId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read, write: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'deviceId', 'deviceInfo', 'createdAt', 'isActive'])
+        && request.resource.data.userId is string
+        && request.resource.data.deviceId is string
+        && isValidDeviceInfo(request.resource.data.deviceInfo)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.isActive is bool;
+    }
+    
+    // OTP verifications collection - temporary storage for OTP verification
+    // Allow authenticated users to read/write their own OTP verification records
+    match /otp_verifications/{verificationId} {
+      allow read, write: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'mobileNumber', 'verificationId', 'createdAt', 'expiresAt', 'verified'])
+        && request.resource.data.userId is string
+        && isValidUAEPhone(request.resource.data.mobileNumber)
+        && request.resource.data.verificationId is string
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.verified is bool;
+    }
+    
+    // Admin collection - only for super admin access (if needed in future)
+    match /admin/{document=**} {
+      allow read, write: if false; // Only backend services can access admin data
+    }
+    
+    // Deny access to all other collections
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

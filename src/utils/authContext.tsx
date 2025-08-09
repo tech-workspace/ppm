@@ -46,7 +46,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         };
 
+        // Listen to Firebase auth state changes
+        const unsubscribe = deviceAuth.onAuthStateChanged(async (firebaseUser) => {
+            console.log('Firebase auth state changed:', firebaseUser ? 'logged in' : 'logged out');
+
+            if (!firebaseUser) {
+                // User is signed out, clear all state
+                console.log('Firebase user signed out, clearing app state');
+                setUser(null);
+                try {
+                    await AsyncStorage.removeItem('user');
+                } catch (error) {
+                    console.error('Error clearing AsyncStorage:', error);
+                }
+            }
+        });
+
         loadUserFromStorage();
+
+        // Cleanup subscription on unmount
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
     }, []);
 
     const createAppUser = (userData: any): User => {
@@ -144,7 +167,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const sendOTP = async (data: MobileLoginData): Promise<AuthResponse> => {
         try {
-            setIsLoading(true);
             const result = await deviceAuth.sendOTP(data.mobileNumber);
 
             if (result.success) {
@@ -162,8 +184,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error: any) {
             console.error('Send OTP error:', error);
             return { success: false, error: error.message || 'Failed to send OTP' };
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -190,12 +210,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const logout = async (): Promise<void> => {
         try {
+            console.log('Starting logout process...');
             setIsLoading(true);
+
+            // Sign out from Firebase
             await deviceAuth.logoutUser();
+            console.log('Firebase signout completed');
+
+            // Clear user state
             setUser(null);
+            console.log('User state cleared');
+
+            // Clear AsyncStorage
             await AsyncStorage.removeItem('user');
+            console.log('AsyncStorage cleared');
+
+            console.log('Logout completed successfully');
         } catch (error) {
             console.error('Logout error:', error);
+            // Force clear state even if there's an error
+            setUser(null);
+            try {
+                await AsyncStorage.removeItem('user');
+            } catch (storageError) {
+                console.error('AsyncStorage clear error:', storageError);
+            }
         } finally {
             setIsLoading(false);
         }

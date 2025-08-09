@@ -10,22 +10,38 @@ import {
     Linking,
     Platform,
     Dimensions,
+    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import Constants from 'expo-constants';
 
 // Import react-native-maps with error handling
 let MapView: any;
 let Marker: any;
 let Region: any;
 
+let PROVIDER_GOOGLE: any;
+let PROVIDER_DEFAULT: any;
+
 try {
     const Maps = require('react-native-maps');
     MapView = Maps.default;
     Marker = Maps.Marker;
     Region = Maps.Region;
+    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+    PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
+
+    // Log available map types and providers
+    console.log('Available MapView constants:', Object.keys(Maps.default || {}));
+    console.log('PROVIDER_GOOGLE:', PROVIDER_GOOGLE);
+    console.log('PROVIDER_DEFAULT:', PROVIDER_DEFAULT);
+
+    if (Maps.default?.MAP_TYPES) {
+        console.log('Available MAP_TYPES:', Maps.default.MAP_TYPES);
+    }
 } catch (error) {
     console.warn('react-native-maps not available:', error);
 }
@@ -121,6 +137,9 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
     const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
     const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
     const [showLotModal, setShowLotModal] = useState(false);
+    const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid' | 'terrain'>('standard');
+    const [mapProvider, setMapProvider] = useState(PROVIDER_GOOGLE || PROVIDER_DEFAULT);
+    const buttonScale = useState(new Animated.Value(1))[0];
     const [region, setRegion] = useState<any>({
         latitude: 24.4539,
         longitude: 54.3773,
@@ -140,6 +159,18 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
             setShowLotModal(true);
         }
     }, [route.params?.selectedLot]);
+
+    // Monitor mapType changes
+    useEffect(() => {
+        console.log('🔄 MapType state changed to:', mapType);
+        console.log('🔄 MapProvider:', mapProvider);
+        console.log('🔄 Platform:', Platform.OS);
+        console.log('🔄 Expo Go?:', Constants.appOwnership === 'expo');
+
+        if (mapType !== 'standard' && Constants.appOwnership === 'expo') {
+            console.log('⚠️ WARNING: Satellite/Hybrid maps may not work in Expo Go. Try on device with development build.');
+        }
+    }, [mapType, mapProvider]);
 
     const getCurrentLocation = React.useCallback(async () => {
         try {
@@ -207,6 +238,49 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
         setSelectedLot(lot);
         setShowLotModal(true);
     }, []);
+
+    const toggleMapType = React.useCallback(() => {
+        console.log('=== MAP TYPE TOGGLE PRESSED ===');
+        console.log('Current mapType:', mapType);
+
+        // Animate button press
+        Animated.sequence([
+            Animated.timing(buttonScale, {
+                toValue: 0.95,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(buttonScale, {
+                toValue: 1,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        // Cycle through different map types to test which one works
+        const mapTypes = ['standard', 'satellite', 'hybrid', 'terrain'] as const;
+        const currentIndex = mapTypes.indexOf(mapType as any);
+        const nextIndex = (currentIndex + 1) % mapTypes.length;
+        const newMapType = mapTypes[nextIndex];
+
+        console.log('Switching from', mapType, 'to', newMapType);
+
+        // When switching to satellite, try Google provider
+        if (newMapType === 'satellite' && PROVIDER_GOOGLE) {
+            console.log('🗺️ Switching to Google provider for satellite view');
+            setMapProvider(PROVIDER_GOOGLE);
+        } else if (newMapType === 'standard') {
+            console.log('🗺️ Switching back to default provider');
+            setMapProvider(PROVIDER_DEFAULT || PROVIDER_GOOGLE);
+        }
+
+        setMapType(newMapType);
+
+        // Log after a short delay to confirm state change
+        setTimeout(() => {
+            console.log('MapType should now be:', newMapType);
+        }, 200);
+    }, [mapType, buttonScale]);
 
     const handleNavigate = React.useCallback(() => {
         if (selectedLot) {
@@ -290,12 +364,37 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
             >
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Interactive Map</Text>
-                    <TouchableOpacity
-                        style={styles.myLocationButton}
-                        onPress={getCurrentLocation}
-                    >
-                        <Ionicons name="locate" size={24} color={COLORS.white} />
-                    </TouchableOpacity>
+                    <View style={styles.headerButtons}>
+                        <TouchableOpacity
+                            onPress={toggleMapType}
+                            activeOpacity={0.8}
+                        >
+                            <Animated.View
+                                style={[
+                                    styles.mapTypeButton,
+                                    {
+                                        transform: [{ scale: buttonScale }],
+                                        backgroundColor: mapType === 'standard' ? COLORS.turquoise : COLORS.darkGray
+                                    }
+                                ]}
+                            >
+                                <Ionicons
+                                    name={mapType === 'standard' ? 'satellite-outline' : 'map-outline'}
+                                    size={20}
+                                    color={COLORS.white}
+                                />
+                                <Text style={styles.mapTypeText}>
+                                    {mapType === 'standard' ? 'Next' : mapType.charAt(0).toUpperCase() + mapType.slice(1)}
+                                </Text>
+                            </Animated.View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.myLocationButton}
+                            onPress={getCurrentLocation}
+                        >
+                            <Ionicons name="locate" size={24} color={COLORS.white} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <View style={styles.mapContainer}>
@@ -338,19 +437,30 @@ const InteractiveMapScreen: React.FC<InteractiveMapScreenProps> = ({ navigation,
                             </View>
                         </View>
                     ) : (
-                        <MapView
-                            style={styles.map}
-                            region={region}
-                            showsUserLocation={true}
-                            showsMyLocationButton={false}
-                            showsCompass={true}
-                            showsScale={true}
-                            showsTraffic={false}
-                            showsBuildings={true}
-                            mapType="standard"
-                        >
-                            {parkingLots.map(renderParkingMarker)}
-                        </MapView>
+                        <>
+                            {console.log('🗺️ Rendering MapView with mapType:', mapType, 'provider:', mapProvider)}
+                            <MapView
+                                key={`${mapType}-${mapProvider}`} // Force re-render when mapType or provider changes
+                                style={styles.map}
+                                region={region}
+                                showsUserLocation={true}
+                                showsMyLocationButton={false}
+                                showsCompass={true}
+                                showsScale={true}
+                                showsTraffic={false}
+                                showsBuildings={mapType === 'standard'}
+                                mapType={mapType}
+                                provider={mapProvider}
+                                onMapReady={() => {
+                                    console.log('🗺️ Map is ready with type:', mapType);
+                                }}
+                                onRegionChangeComplete={(newRegion) => {
+                                    console.log('🗺️ Region changed with mapType:', mapType);
+                                }}
+                            >
+                                {parkingLots.map(renderParkingMarker)}
+                            </MapView>
+                        </>
                     )}
                 </View>
 
@@ -451,6 +561,33 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         color: COLORS.black,
+    },
+    headerButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    mapTypeButton: {
+        backgroundColor: COLORS.turquoise,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        shadowColor: COLORS.black,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    mapTypeText: {
+        color: COLORS.white,
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,
     },
     myLocationButton: {
         backgroundColor: COLORS.turquoise,

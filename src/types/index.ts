@@ -47,6 +47,7 @@ export interface AuthResponse {
     user?: User;
     verificationId?: string; // For OTP verification
     deviceInfo?: DeviceInfo; // For device mismatch errors
+    isNewUser?: boolean; // For new user registration flow
 }
 
 // Login/Signup form data
@@ -69,6 +70,8 @@ export interface OTPVerificationData {
     mobileNumber: string;
     verificationId: string;
     otp: string;
+    isNewUser?: boolean;
+    name?: string;
 }
 
 // Mobile login data
